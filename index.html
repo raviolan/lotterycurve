@@ -236,11 +236,11 @@
                     <input type="number" v-model.number="sponsorship">
                 </div>
                 <div class="control-group">
-                    <label>Billigaste flaska (kr)</label>
+                    <label>Dyraste flaska (kr)</label>
                     <input type="number" v-model.number="values[1]">
                 </div>
                 <div class="control-group">
-                    <label>Dyraste flaska (kr)</label>
+                    <label>Billigaste flaska (kr)</label>
                     <input type="number" v-model.number="values.last">
                 </div>
                 <div class="control-group">
@@ -545,7 +545,23 @@
                             maintainAspectRatio: false,
                             animation: false,
                             plugins: {
-                                legend: { display: false }
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        title: (context) => {
+                                            if (context[0].datasetIndex === 1) {
+                                                return `Placering: ${context[0].label}`;
+                                            }
+                                            return context[0].label;
+                                        },
+                                        label: (context) => {
+                                            if (context.datasetIndex === 1) {
+                                                return `Pris: ${context.parsed.y} kr`;
+                                            }
+                                            return `${context.parsed.y} kr`;
+                                        }
+                                    }
+                                }
                             },
                             scales: {
                                 x: {
