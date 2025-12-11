@@ -444,6 +444,7 @@
                 },
                 saveToLocalStorage() {
                     localStorage.setItem('lotterycurve', JSON.stringify({
+                        version: 2,  // Increment version to invalidate old data
                         persons: this.persons,
                         sponsorship: this.sponsorship,
                         values: this.values,
@@ -454,6 +455,11 @@
                     const saved = localStorage.getItem('lotterycurve');
                     if (saved) {
                         const data = JSON.parse(saved);
+                        // Clear old data if version doesn't match
+                        if (data.version !== 2) {
+                            localStorage.removeItem('lotterycurve');
+                            return;
+                        }
                         this.persons = data.persons || this.persons;
                         this.sponsorship = data.sponsorship || this.sponsorship;
                         this.values = { ...this.values, ...data.values };
