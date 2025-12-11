@@ -73,68 +73,8 @@
             margin-bottom: 40px;
         }
 
-        .sliders-overlay {
-            position: absolute;
-            top: 0;
-            left: 60px;
-            right: 20px;
-            bottom: 50px;
-            pointer-events: none;
-        }
-
-        .slider-wrapper {
-            position: absolute;
-            height: 100%;
-            pointer-events: all;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            width: 40px;
-            margin-left: -20px;
-        }
-
-        .slider-wrapper::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 50%;
-            width: 2px;
-            background: rgba(59, 130, 246, 0.3);
-            transform: translateX(-50%);
-            pointer-events: none;
-        }
-
-        input[type="range"] {
-            writing-mode: vertical-lr;
-            direction: rtl;
-            width: 8px;
-            height: 85%;
-            cursor: pointer;
-            background: #3b82f6;
-            border-radius: 4px;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #2563eb;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #2563eb;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        .chart-container canvas {
+            pointer-events: auto;
         }
 
         .controls {
@@ -284,31 +224,33 @@
                     <div class="diff">{{ formattedDiff }}</div>
                 </div>
                 <canvas ref="chart"></canvas>
-                <div class="sliders-overlay">
-                    <div v-for="pos in sliderPositions" :key="pos" :style="{ left: getSliderPosition(pos) + '%' }"
-                        class="slider-wrapper">
-                        <input type="range" :min="values.last" :max="values[1]" v-model.number="values[pos]"
-                            @input="onSliderChange" @change="onSliderChange" :title="'Position ' + pos">
-                    </div>
-                </div>
             </div>
 
             <div class="controls">
                 <div class="control-group">
                     <label>Antal personer</label>
-                    <input type="number" v-model.number="persons" min="5" @input="redistributeValues">
+                    <input type="number" v-model.number="persons" min="5">
                 </div>
                 <div class="control-group">
                     <label>Insats från VX (kr)</label>
                     <input type="number" v-model.number="sponsorship">
                 </div>
                 <div class="control-group">
-                    <label>Första pris (kr)</label>
-                    <input type="number" v-model.number="values[1]" @input="redistributeValues">
+                    <label>Billigaste flaska (kr)</label>
+                    <input type="number" v-model.number="values[1]">
                 </div>
                 <div class="control-group">
-                    <label>Sista pris (kr)</label>
-                    <input type="number" v-model.number="values.last" @input="redistributeValues">
+                    <label>Dyraste flaska (kr)</label>
+                    <input type="number" v-model.number="values.last">
+                </div>
+                <div class="control-group">
+                    <button @click="redistributeValues" class="add-button" style="margin-top: 24px;">Fördela
+                        kostnad</button>
+                </div>
+                <div class="control-group">
+                    <button @click="clearStorage"
+                        style="margin-top: 24px; background: #dc2626; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">Återställ
+                        allt</button>
                 </div>
             </div>
 
@@ -354,17 +296,18 @@
                     stake: 100,
                     sponsorship: 3000,
                     values: {
-                        1: 500,
-                        2: 400,
-                        3: 350,
+                        1: 70,      // First drawn = cheapest
+                        2: 100,
+                        3: 150,
                         5: 250,
-                        10: 150,
-                        20: 100,
-                        last: 70
+                        10: 350,
+                        20: 400,
+                        last: 500   // Last drawn = most expensive
                     },
                     sponsoredBottles: [],
                     chart: null,
-                    updateTrigger: 0  // Force reactivity trigger
+                    updateTrigger: 0,  // Force reactivity trigger
+                    draggingPoint: null  // Track which point is being dragged
                 };
             },
             computed: {
@@ -454,19 +397,19 @@
                     this.saveToLocalStorage();
                 },
                 redistributeValues() {
-                    // Auto-distribute intermediate control points between first and last prize
-                    const firstPrize = this.values[1];
-                    const lastPrize = this.values.last;
+                    // Auto-distribute intermediate control points between cheapest and most expensive
+                    const cheapest = this.values[1];  // Position 1 = cheapest
+                    const mostExpensive = this.values.last;  // Last position = most expensive
                     const controlPoints = [1, 2, 3, 5, 10, 20].filter(p => p < this.persons);
 
                     // Calculate even distribution for intermediate points
                     if (controlPoints.length > 1) {
                         for (let i = 1; i < controlPoints.length; i++) {
                             const pos = controlPoints[i];
-                            // Calculate position ratio (0 to 1)
+                            // Calculate position ratio (0 to 1) - increases as position increases
                             const ratio = i / (controlPoints.length);
-                            // Interpolate between first and last prize
-                            this.values[pos] = Math.round(firstPrize + (lastPrize - firstPrize) * ratio);
+                            // Interpolate from cheap to expensive
+                            this.values[pos] = Math.round(cheapest + (mostExpensive - cheapest) * ratio);
                         }
                     }
 
@@ -517,15 +460,26 @@
                         this.sponsoredBottles = data.sponsoredBottles || [];
                     }
                 },
+                clearStorage() {
+                    if (confirm('Rensa all sparad data och återställ till standardvärden?')) {
+                        localStorage.removeItem('lotterycurve');
+                        location.reload();
+                    }
+                },
                 updateChart() {
                     if (!this.chart || !this.$refs.chart) {
                         return;
                     }
 
                     const chartData = [];
+                    const controlPointsData = [];
                     for (let i = 1; i <= this.persons; i++) {
                         const pos = this.positions.find(p => p.position === i);
                         chartData.push(pos ? pos.cost : null);
+
+                        // Only show dots at slider control positions
+                        const isControlPoint = this.sliderPositions.includes(i);
+                        controlPointsData.push(isControlPoint && pos ? pos.cost : null);
                     }
 
                     try {
@@ -536,6 +490,9 @@
 
                         this.chart.data.labels = Array.from({ length: this.persons }, (_, i) => (i + 1).toString());
                         this.chart.data.datasets[0].data = chartData;
+                        if (this.chart.data.datasets[1]) {
+                            this.chart.data.datasets[1].data = controlPointsData;
+                        }
                         this.chart.update('none');
                     } catch (e) {
                         // Chart is corrupted, destroy and recreate
@@ -549,9 +506,14 @@
                     const ctx = this.$refs.chart.getContext('2d');
 
                     const chartData = [];
+                    const controlPointsData = [];  // Data for showing control point dots
                     for (let i = 1; i <= this.persons; i++) {
                         const pos = this.positions.find(p => p.position === i);
                         chartData.push(pos ? pos.cost : null);
+
+                        // Only show dots at slider control positions
+                        const isControlPoint = this.sliderPositions.includes(i);
+                        controlPointsData.push(isControlPoint && pos ? pos.cost : null);
                     }
 
                     this.chart = new Chart(ctx, {
@@ -559,13 +521,23 @@
                         data: {
                             labels: Array.from({ length: this.persons }, (_, i) => (i + 1).toString()),
                             datasets: [{
+                                label: 'Kurva',
                                 data: chartData,
                                 borderColor: '#3b82f6',
                                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                 tension: 0,
                                 borderWidth: 2,
                                 pointRadius: 0,
-                                pointHoverRadius: 4
+                                pointHoverRadius: 4,
+                                fill: true
+                            }, {
+                                label: 'Kontrollpunkter',
+                                data: controlPointsData,
+                                borderColor: 'transparent',
+                                backgroundColor: '#2563eb',
+                                pointRadius: 6,
+                                pointHoverRadius: 8,
+                                showLine: false
                             }]
                         },
                         options: {
@@ -590,9 +562,53 @@
                                     min: 0,
                                     max: 700
                                 }
+                            },
+                            onHover: (event, activeElements) => {
+                                event.native.target.style.cursor = activeElements.length > 0 ? 'ns-resize' : 'default';
+                            },
+                            onClick: (event) => {
+                                this.dragStart(event);
                             }
                         }
                     });
+
+                    // Add drag functionality
+                    this.$refs.chart.addEventListener('mousedown', this.startDrag);
+                    this.$refs.chart.addEventListener('mousemove', this.onDrag);
+                    this.$refs.chart.addEventListener('mouseup', this.stopDrag);
+                    this.$refs.chart.addEventListener('mouseleave', this.stopDrag);
+                },
+                startDrag(event) {
+                    const points = this.chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                    if (points.length > 0 && points[0].datasetIndex === 1) { // Only control points dataset
+                        const pointIndex = points[0].index + 1; // +1 because chart is 0-indexed
+                        const position = this.sliderPositions.find((p, i) => i === points[0].index);
+                        if (position) {
+                            this.draggingPoint = position;
+                            event.preventDefault();
+                        }
+                    }
+                },
+                onDrag(event) {
+                    if (!this.draggingPoint) return;
+
+                    const rect = this.$refs.chart.getBoundingClientRect();
+                    const y = event.clientY - rect.top;
+                    const yAxis = this.chart.scales.y;
+
+                    // Convert pixel Y to data value
+                    const value = yAxis.getValueForPixel(y);
+                    const clampedValue = Math.max(0, Math.min(700, Math.round(value)));
+
+                    this.values[this.draggingPoint] = clampedValue;
+                    this.updateTrigger++;
+                    this.updateChart();
+                },
+                stopDrag() {
+                    if (this.draggingPoint) {
+                        this.saveToLocalStorage();
+                        this.draggingPoint = null;
+                    }
                 }
             },
             watch: {
