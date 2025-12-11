@@ -296,7 +296,7 @@
             <div class="controls">
                 <div class="control-group">
                     <label>Antal personer</label>
-                    <input type="number" v-model.number="persons" min="5" @input="recalculate">
+                    <input type="number" v-model.number="persons" min="5" @input="redistributeValues">
                 </div>
                 <div class="control-group">
                     <label>Insats från VX (kr)</label>
@@ -304,11 +304,11 @@
                 </div>
                 <div class="control-group">
                     <label>Första pris (kr)</label>
-                    <input type="number" v-model.number="values[1]" @input="recalculate">
+                    <input type="number" v-model.number="values[1]" @input="redistributeValues">
                 </div>
                 <div class="control-group">
                     <label>Sista pris (kr)</label>
-                    <input type="number" v-model.number="values.last" @input="recalculate">
+                    <input type="number" v-model.number="values.last" @input="redistributeValues">
                 </div>
             </div>
 
@@ -448,19 +448,12 @@
                     return ((pos - 1) / (this.persons - 1)) * 100;
                 },
                 onSliderChange(event) {
-                    // Prevent multiple rapid fires
-                    if (this._updating) return;
-                    this._updating = true;
-
-                    // Trigger recalculate to update everything including input fields
-                    this.recalculate();
-
-                    // Use setTimeout to ensure slider event fully completes
-                    setTimeout(() => {
-                        this._updating = false;
-                    }, 20);
+                    // Update trigger to force recomputation
+                    this.updateTrigger++;
+                    this.updateChart();
+                    this.saveToLocalStorage();
                 },
-                recalculate() {
+                redistributeValues() {
                     // Auto-distribute intermediate control points between first and last prize
                     const firstPrize = this.values[1];
                     const lastPrize = this.values.last;
@@ -480,7 +473,17 @@
                     // Force Vue to detect the change
                     this.updateTrigger++;
 
-                    // Use multiple nextTick to ensure everything has rendered
+                    // Update chart and save
+                    this.$nextTick(() => {
+                        this.$nextTick(() => {
+                            this.updateChart();
+                            this.saveToLocalStorage();
+                        });
+                    });
+                },
+                updateChartOnly() {
+                    // Just update the chart without redistributing values
+                    this.updateTrigger++;
                     this.$nextTick(() => {
                         this.$nextTick(() => {
                             this.updateChart();
@@ -593,15 +596,6 @@
                 }
             },
             watch: {
-                persons() {
-                    this.recalculate();
-                },
-                'values.1'() {
-                    this.recalculate();
-                },
-                'values.last'() {
-                    this.recalculate();
-                },
                 sponsorship() { this.saveToLocalStorage(); },
                 sponsoredBottles: {
                     handler() {
@@ -614,7 +608,6 @@
             },
             mounted() {
                 this.loadFromLocalStorage();
-                this.recalculate(); // Auto-distribute on load
                 this.initChart();
             }
         }).mount('#app');
