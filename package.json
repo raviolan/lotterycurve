@@ -1,0 +1,8 @@
+{
+  "name": "lotterycurve",
+  "version": "2.0.0",
+  "description": "Wine lottery curve calculator - single file app",
+  "scripts": {
+    "build": "echo 'No build needed - static HTML file'"
+  }
+}
