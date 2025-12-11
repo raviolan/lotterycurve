@@ -1,6 +1,6 @@
 [build]
-  # No build command needed - just serve the index.html directly
-  publish = "."
+  command = "npm run build"
+  publish = "dist"
   
 [[redirects]]
   from = "/*"

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="sv">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lottery Curve 2026 edition</title>
+    <!-- Vue 3.4.21 with local fallback -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js" 
+            integrity="sha384-..." 
+            crossorigin="anonymous"
+            onerror="this.onerror=null;this.src='/libs/vue.global.prod.js'"></script>
+    <!-- Chart.js 4.4.1 with local fallback -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
+            crossorigin="anonymous"
+            onerror="this.onerror=null;this.src='/libs/chart.umd.min.js'"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        .budget-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .budget-display.positive {
+            background: #10b981;
+        }
+
+        .budget-display.negative {
+            background: #ef4444;
+        }
+
+        .budget-display .amount {
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .budget-display .diff {
+            font-size: 24px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 40px;
+        }
+
+        .chart-container canvas {
+            pointer-events: auto;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .control-group input {
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .control-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f9fafb;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .sponsored-row {
+            background: #dcfce7 !important;
+        }
+
+        .sponsored-row:hover {
+            background: #bbf7d0 !important;
+        }
+
+        .sponsored-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .sponsored-section h3 {
+            margin-bottom: 15px;
+            color: #374151;
+        }
+
+        .sponsored-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .sponsored-item input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            flex: 1;
+        }
+
+        .sponsored-item button {
+            padding: 8px 16px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .sponsored-item button:hover {
+            background: #dc2626;
+        }
+
+        .add-button {
+            padding: 10px 20px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+
+        .add-button:hover {
+            background: #059669;
+        }
+
+        @media print {
+
+            .chart-container,
+            .controls,
+            .sponsored-section {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="container">
+            <h1>Lotterycurve anno 2026</h1>
+
+            <div class="chart-container">
+                <div class="budget-display" :class="diffClass">
+                    <div class="amount">Intäkt: {{ amount }} kr</div>
+                    <div class="amount">Kostnad: {{ totalCost }} kr</div>
+                    <div class="diff">{{ formattedDiff }}</div>
+                </div>
+                <canvas ref="chart"></canvas>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>Antal personer</label>
+                    <input type="number" v-model.number="persons" min="5">
+                </div>
+                <div class="control-group">
+                    <label>Insats från VX (kr)</label>
+                    <input type="number" v-model.number="sponsorship">
+                </div>
+                <div class="control-group">
+                    <label>Dyraste flaska (kr)</label>
+                    <input type="number" v-model.number="values[1]">
+                </div>
+                <div class="control-group">
+                    <label>Billigaste flaska (kr)</label>
+                    <input type="number" v-model.number="values.last">
+                </div>
+                <div class="control-group">
+                    <button @click="redistributeValues" class="add-button" style="margin-top: 24px;">Fördela
+                        kostnad</button>
+                </div>
+                <div class="control-group">
+                    <button @click="clearStorage"
+                        style="margin-top: 24px; background: #dc2626; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">Återställ
+                        allt</button>
+                </div>
+            </div>
+
+            <div class="sponsored-section">
+                <h3>Sponsrade flaskor</h3>
+                <div v-for="(bottle, index) in sponsoredBottles" :key="index" class="sponsored-item">
+                    <input type="text" v-model="bottle.name" placeholder="Namn">
+                    <input type="number" v-model.number="bottle.price" placeholder="Pris (kr)">
+                    <button @click="removeBottle(index)">Ta bort</button>
+                </div>
+                <button class="add-button" @click="addBottle">+ Lägg till flaska</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Placering</th>
+                            <th>Namn</th>
+                            <th>Pris (kr)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="position in positions" :key="position.position"
+                            :class="{ 'sponsored-row': position.sponsored }">
+                            <td>{{ position.position }}</td>
+                            <td>{{ position.name || '-' }}</td>
+                            <td>{{ position.cost }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    persons: 29,
+                    stake: 100,
+                    sponsorship: 3000,
+                    values: {
+                        1: 500,      // First drawn = most expensive
+                        2: 400,
+                        3: 350,
+                        5: 250,
+                        10: 150,
+                        20: 100,
+                        last: 70    // Last drawn = cheapest
+                    },
+                    sponsoredBottles: [],
+                    chart: null,
+                    updateTrigger: 0,  // Force reactivity trigger
+                    draggingPoint: null  // Track which point is being dragged
+                };
+            },
+            computed: {
+                controlPoints() {
+                    const points = [1, 2, 3, 5, 10, 20];
+                    return points.filter(p => p < this.persons).concat([this.persons]);
+                },
+                sliderPositions() {
+                    // Get control points excluding the last (which is the final position)
+                    const points = [1, 2, 3, 5, 10, 20];
+                    return points.filter(p => p < this.persons);
+                },
+                amount() {
+                    return this.stake * this.persons + this.sponsorship;
+                },
+                positions() {
+                    // Force reactivity by accessing updateTrigger
+                    this.updateTrigger;
+
+                    const positions = [];
+                    const controlPoints = this.controlPoints;
+
+                    // Generate all positions with interpolation
+                    for (let i = 0; i < controlPoints.length; i++) {
+                        const current = controlPoints[i];
+                        const next = controlPoints[i + 1];
+
+                        const currentVal = current === this.persons ? this.values.last : this.values[current];
+                        positions.push({ position: current, cost: Math.round(currentVal), name: '' });
+
+                        if (next) {
+                            const nextVal = next === this.persons ? this.values.last : this.values[next];
+                            // Interpolate between current and next
+                            for (let pos = current + 1; pos < next; pos++) {
+                                const t = (pos - current) / (next - current);
+                                const cost = Math.round(currentVal + (nextVal - currentVal) * t);
+                                positions.push({ position: pos, cost, name: '' });
+                            }
+                        }
+                    }
+
+                    // Apply sponsored bottles
+                    const costs = positions.map(p => p.cost);
+                    for (const bottle of this.sponsoredBottles) {
+                        if (!bottle.name || !bottle.price) continue;
+
+                        // Find closest cost
+                        const closest = costs.reduce((prev, curr) =>
+                            Math.abs(curr - bottle.price) < Math.abs(prev - bottle.price) ? curr : prev
+                        );
+
+                        const index = positions.findIndex(p => p.cost === closest);
+                        if (index !== -1) {
+                            positions[index] = {
+                                ...positions[index],
+                                cost: bottle.price,
+                                name: bottle.name,
+                                sponsored: true
+                            };
+                            costs[index] = -1; // Mark as used
+                        }
+                    }
+
+                    return positions;
+                },
+                totalCost() {
+                    return this.positions.reduce((sum, p) => sum + p.cost, 0);
+                },
+                diff() {
+                    return this.amount - this.totalCost;
+                },
+                formattedDiff() {
+                    return (this.diff > 0 ? '+' : '') + this.diff + ' kr';
+                },
+                diffClass() {
+                    return this.diff >= 0 ? 'positive' : 'negative';
+                }
+            },
+            methods: {
+                getSliderPosition(pos) {
+                    return ((pos - 1) / (this.persons - 1)) * 100;
+                },
+                onSliderChange(event) {
+                    // Update trigger to force recomputation
+                    this.updateTrigger++;
+                    this.updateChart();
+                    this.saveToLocalStorage();
+                },
+                redistributeValues() {
+                    // Auto-distribute intermediate control points between cheapest and most expensive
+                    const cheapest = this.values[1];  // Position 1 = cheapest
+                    const mostExpensive = this.values.last;  // Last position = most expensive
+                    const controlPoints = [1, 2, 3, 5, 10, 20].filter(p => p < this.persons);
+
+                    // Calculate even distribution for intermediate points
+                    if (controlPoints.length > 1) {
+                        for (let i = 1; i < controlPoints.length; i++) {
+                            const pos = controlPoints[i];
+                            // Calculate position ratio (0 to 1) - increases as position increases
+                            const ratio = i / (controlPoints.length);
+                            // Interpolate from cheap to expensive
+                            this.values[pos] = Math.round(cheapest + (mostExpensive - cheapest) * ratio);
+                        }
+                    }
+
+                    // Force Vue to detect the change
+                    this.updateTrigger++;
+
+                    // Update chart and save
+                    this.$nextTick(() => {
+                        this.$nextTick(() => {
+                            this.updateChart();
+                            this.saveToLocalStorage();
+                        });
+                    });
+                },
+                updateChartOnly() {
+                    // Just update the chart without redistributing values
+                    this.updateTrigger++;
+                    this.$nextTick(() => {
+                        this.$nextTick(() => {
+                            this.updateChart();
+                            this.saveToLocalStorage();
+                        });
+                    });
+                },
+                addBottle() {
+                    this.sponsoredBottles.push({ name: '', price: 0 });
+                    this.saveToLocalStorage();
+                },
+                removeBottle(index) {
+                    this.sponsoredBottles.splice(index, 1);
+                    this.saveToLocalStorage();
+                },
+                saveToLocalStorage() {
+                    localStorage.setItem('lotterycurve', JSON.stringify({
+                        version: 2,  // Increment version to invalidate old data
+                        persons: this.persons,
+                        sponsorship: this.sponsorship,
+                        values: this.values,
+                        sponsoredBottles: this.sponsoredBottles
+                    }));
+                },
+                loadFromLocalStorage() {
+                    const saved = localStorage.getItem('lotterycurve');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        // Clear old data if version doesn't match
+                        if (data.version !== 2) {
+                            localStorage.removeItem('lotterycurve');
+                            return;
+                        }
+                        this.persons = data.persons || this.persons;
+                        this.sponsorship = data.sponsorship || this.sponsorship;
+                        this.values = { ...this.values, ...data.values };
+                        this.sponsoredBottles = data.sponsoredBottles || [];
+                    }
+                },
+                clearStorage() {
+                    if (confirm('Rensa all sparad data och återställ till standardvärden?')) {
+                        localStorage.removeItem('lotterycurve');
+                        location.reload();
+                    }
+                },
+                updateChart() {
+                    if (!this.chart || !this.$refs.chart) {
+                        return;
+                    }
+
+                    const chartData = [];
+                    const controlPointsData = [];
+                    for (let i = 1; i <= this.persons; i++) {
+                        const pos = this.positions.find(p => p.position === i);
+                        chartData.push(pos ? pos.cost : null);
+
+                        // Only show dots at slider control positions
+                        const isControlPoint = this.sliderPositions.includes(i);
+                        controlPointsData.push(isControlPoint && pos ? pos.cost : null);
+                    }
+
+                    try {
+                        // Check if chart is in valid state
+                        if (!this.chart.data || !this.chart.data.datasets || !this.chart.data.datasets[0]) {
+                            throw new Error('Chart corrupted');
+                        }
+
+                        this.chart.data.labels = Array.from({ length: this.persons }, (_, i) => (i + 1).toString());
+                        this.chart.data.datasets[0].data = chartData;
+                        if (this.chart.data.datasets[1]) {
+                            this.chart.data.datasets[1].data = controlPointsData;
+                        }
+                        this.chart.update('none');
+                    } catch (e) {
+                        // Chart is corrupted, destroy and recreate
+                        try {
+                            this.chart.destroy();
+                        } catch (destroyErr) { }
+                        this.initChart();
+                    }
+                },
+                initChart() {
+                    const ctx = this.$refs.chart.getContext('2d');
+
+                    const chartData = [];
+                    const controlPointsData = [];  // Data for showing control point dots
+                    for (let i = 1; i <= this.persons; i++) {
+                        const pos = this.positions.find(p => p.position === i);
+                        chartData.push(pos ? pos.cost : null);
+
+                        // Only show dots at slider control positions
+                        const isControlPoint = this.sliderPositions.includes(i);
+                        controlPointsData.push(isControlPoint && pos ? pos.cost : null);
+                    }
+
+                    this.chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: Array.from({ length: this.persons }, (_, i) => (i + 1).toString()),
+                            datasets: [{
+                                label: 'Kurva',
+                                data: chartData,
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0,
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                pointHoverRadius: 4,
+                                fill: true
+                            }, {
+                                label: 'Kontrollpunkter',
+                                data: controlPointsData,
+                                borderColor: 'transparent',
+                                backgroundColor: '#2563eb',
+                                pointRadius: 6,
+                                pointHoverRadius: 8,
+                                showLine: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        title: (context) => {
+                                            if (context[0].datasetIndex === 1) {
+                                                return `Placering: ${context[0].label}`;
+                                            }
+                                            return context[0].label;
+                                        },
+                                        label: (context) => {
+                                            if (context.datasetIndex === 1) {
+                                                return `Pris: ${context.parsed.y} kr`;
+                                            }
+                                            return `${context.parsed.y} kr`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Placering'
+                                    }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: 'Pris (kr)'
+                                    },
+                                    min: 0,
+                                    max: 700
+                                }
+                            },
+                            onHover: (event, activeElements) => {
+                                event.native.target.style.cursor = activeElements.length > 0 ? 'ns-resize' : 'default';
+                            },
+                            onClick: (event) => {
+                                this.dragStart(event);
+                            }
+                        }
+                    });
+
+                    // Add drag functionality
+                    this.$refs.chart.addEventListener('mousedown', this.startDrag);
+                    this.$refs.chart.addEventListener('mousemove', this.onDrag);
+                    this.$refs.chart.addEventListener('mouseup', this.stopDrag);
+                    this.$refs.chart.addEventListener('mouseleave', this.stopDrag);
+                },
+                startDrag(event) {
+                    const points = this.chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                    if (points.length > 0 && points[0].datasetIndex === 1) { // Only control points dataset
+                        const pointIndex = points[0].index + 1; // +1 because chart is 0-indexed
+                        const position = this.sliderPositions.find((p, i) => i === points[0].index);
+                        if (position) {
+                            this.draggingPoint = position;
+                            event.preventDefault();
+                        }
+                    }
+                },
+                onDrag(event) {
+                    if (!this.draggingPoint) return;
+
+                    const rect = this.$refs.chart.getBoundingClientRect();
+                    const y = event.clientY - rect.top;
+                    const yAxis = this.chart.scales.y;
+
+                    // Convert pixel Y to data value
+                    const value = yAxis.getValueForPixel(y);
+                    const clampedValue = Math.max(0, Math.min(700, Math.round(value)));
+
+                    this.values[this.draggingPoint] = clampedValue;
+                    this.updateTrigger++;
+                    this.updateChart();
+                },
+                stopDrag() {
+                    if (this.draggingPoint) {
+                        this.saveToLocalStorage();
+                        this.draggingPoint = null;
+                    }
+                }
+            },
+            watch: {
+                sponsorship() { this.saveToLocalStorage(); },
+                sponsoredBottles: {
+                    handler() {
+                        this.updateTrigger++;
+                        this.$nextTick(() => this.updateChart());
+                        this.saveToLocalStorage();
+                    },
+                    deep: true
+                }
+            },
+            mounted() {
+                this.loadFromLocalStorage();
+                this.initChart();
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

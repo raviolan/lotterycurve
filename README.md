@@ -1,11 +1,11 @@
 # Vinlotteri Kurva
 
-A simple, modern single-file web application for managing wine lottery prize distributions.
+A modern, well-structured web application for managing wine lottery prize distributions.
 
 ## Features
 
 - **Interactive prize curve visualization** using Chart.js
-- **Dynamic participant count** - works with any number of participants (not limited to 29)
+- **Dynamic participant count** - works with any number of participants
 - **Control points** at positions 1, 2, 3, 5, 10, 20, and last position
 - **Vertical sliders** to adjust prize values at control points
 - **Linear interpolation** between control points
@@ -14,40 +14,72 @@ A simple, modern single-file web application for managing wine lottery prize dis
 - **Auto-save** - uses localStorage to persist your settings
 - **Print-friendly** - table-only view when printing
 
-## What's Different from the Old Version?
+## Tech Stack (v2.1)
 
-### Removed (Unnecessary Complexity)
-- ❌ Node.js build system (Vue CLI, webpack, babel)
-- ❌ 1,300+ npm dependencies
-- ❌ Separate component files
-- ❌ Build step and deployment complexity
-- ❌ Old Vue 2 / Bootstrap 4
-- ❌ Cookie-based storage (replaced with localStorage)
+- **Vue 3.4** - Modern reactive framework
+- **Chart.js 4.4** - Interactive charts
+- **Vite 5** - Lightning-fast build tool
+- **Vitest** - Unit testing framework
+- **ESLint + Prettier** - Code quality tools
 
-### Kept (Essential Functionality)
-- ✅ Interactive chart with vertical sliders
-- ✅ Dynamic participant count
-- ✅ Control points and interpolation logic
-- ✅ Budget calculation and display
-- ✅ Sponsored bottles feature
-- ✅ Position table with all prizes
-- ✅ Data persistence
+## Project Structure
 
-### Added (Modern Improvements)
-- ✅ Vue 3 (latest stable)
-- ✅ Chart.js 4 (modern charting)
-- ✅ Single-file application (no build needed)
-- ✅ Modern CSS with CSS Grid
-- ✅ Clean, readable code
-- ✅ Better mobile responsiveness
+```
+lotterycurve/
+├── src/
+│   ├── App.vue              # Main Vue component
+│   ├── main.js              # App entry point
+│   ├── style.css            # Global styles
+│   ├── utils/
+│   │   ├── calculations.js  # Business logic
+│   │   ├── storage.js       # LocalStorage utilities
+│   │   └── chart.js         # Chart.js helpers
+│   └── tests/               # Unit tests
+├── index.html               # Vite entry HTML
+├── vite.config.js           # Vite configuration
+├── package.json             # Dependencies
+└── netlify.toml             # Deployment config
+```
 
-## How to Use
+## Development
 
-### Option 1: Open Directly
-Simply open `index.html` in your web browser. That's it!
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed development commands.
 
-### Option 2: Serve Locally
+### Quick Start
+
 ```bash
+# Install dependencies
+npm install
+
+# Run dev server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+## What's New in v2.1?
+
+### Improved Architecture
+- ✅ **Modular structure** - Separated concerns (UI, logic, utilities)
+- ✅ **Vite build system** - Modern, fast development experience
+- ✅ **TypeScript-ready** - Easy migration path to TypeScript
+- ✅ **Unit tests** - Comprehensive test coverage with Vitest
+- ✅ **Code quality** - ESLint + Prettier for consistent code
+- ✅ **Better maintainability** - Clean separation of business logic
+
+### Future-Proofing
+- ✅ **Versioned dependencies** - Pinned Vue and Chart.js versions
+- ✅ **Build optimization** - Tree-shaking, minification, code splitting
+- ✅ **Developer experience** - Hot module replacement, fast builds
+- ✅ **Testing infrastructure** - Easy to add new tests
+- ✅ **Scalable** - Ready for feature expansion
+
+## Deployment
+
+This project is configured for Netlify deployment. Simply push to your repository and Netlify will automatically build and deploy.
+
+The build command is `npm run build` and outputs to the `dist/` directory.
 # Using Python
 python3 -m http.server 8000
 
