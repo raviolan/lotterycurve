@@ -1,0 +1,8 @@
+[build]
+  # No build command needed - just serve the index.html directly
+  publish = "."
+  
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
